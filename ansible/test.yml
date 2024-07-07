@@ -1,0 +1,21 @@
+# playbook
+- hosts: nodes
+  gather_facts: false
+  tasks:
+    - name: upload hosts file
+      copy:
+        src: hosts
+        dest: /root/hosts
+    - name: run command on remote hosts
+      shell: pwd
+      args:
+        chdir: /tmp
+        removes: /root/hosts
+    - name: debug a message
+      debug:
+        msg: "hello"
+- hosts: center
+  gather_facts: false
+  tasks:
+    - name: run command on remote hosts
+      shell: hostname
