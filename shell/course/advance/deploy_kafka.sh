@@ -1,6 +1,11 @@
 #!/bin/bash
 
-exec 1>> ./deploy_kafka.log 2>&1
+# 初始化日志文件
+if [ -e ./deploy_kafka.log ]; then
+    rm -f ./deploy_kafka.log
+fi
+
+exec 1>>./deploy_kafka.log 2>&1
 
 # 初始化变量
 HOST_LIST="192.168.1.107"
@@ -24,10 +29,17 @@ function remote_execute {
     echo
 }
 
-remote_execute "df -h"
-remote_execute "ls"
+# 关闭 firewalld 和 setlinux 函数封装
+function turn_off_firewalld {
+    remote_execute "systemctl stop firewalld"
+    remote_execute "systemctl disable firewalld"
+    remote_execute "setenforce 0"
+    remote_execute "sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux"
+}
 
 # 关闭 firewalld 和 setlinux
+turn_off_firewalld
+
 # 安装配置 jdk
 # 安装配置 zookeeper ，并启动服务
 # 安装配置 kafka ，并启动服务
