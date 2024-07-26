@@ -1,5 +1,7 @@
 #!/bin/bash
 
+exec 1>> ./deploy_kafka.log 2>&1
+
 # 初始化变量
 HOST_LIST="192.168.1.107"
 CMD_NUM=0
