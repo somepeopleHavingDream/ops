@@ -71,6 +71,18 @@ remote_execute "sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/s
 
 # 安装配置 jdk
 remote_transfer $LOCAL_DIR/$JDK_NAME $PACKAGE_DIR
+remote_execute "if [ ! -d $APP_DIR ]; then mkdir -p $APP_DIR; fi"
+remote_execute "tar zxf $PACKAGE_DIR/$JDK_NAME -C $APP_DIR"
+
+cat >$LOCAL_DIR/java.sh <<EOF
+export JAVA_HOME=/opt/source/jdk1.8.0_261
+export PATH=\$PATH:\$JAVA_HOME/bin:\$JAVA_HOME/jre/bin
+export JAVA_HOME PATH
+EOF
+
+remote_transfer $LOCAL_DIR/java.sh /etc/profile.d/
+remote_execute "source /etc/profile.d/java.sh"
+remote_execute "java -version"
 
 # 安装配置 zookeeper ，并启动服务
 # 安装配置 kafka ，并启动服务
