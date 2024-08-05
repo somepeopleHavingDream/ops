@@ -9,10 +9,11 @@ exec 1>>./deploy_kafka.log 2>&1
 
 # 初始化变量
 HOST_LIST="192.168.1.104"
-LOCAL_DIR="/root/disks/disk1/compressfiles"
+LOCAL_DIR="/opt/tmp"
 PACKAGE_DIR="/opt/package"
 APP_DIR="/opt/source"
 JDK_NAME="jdk-8u261-linux-x64.tar.gz"
+ZK_NAME="apache-zookeeper-3.9.2-bin.tar.gz"
 
 # 多主机执行指令函数封装
 function remote_execute {
@@ -85,4 +86,19 @@ remote_execute "source /etc/profile.d/java.sh"
 remote_execute "java -version"
 
 # 安装配置 zookeeper ，并启动服务
+remote_transfer $LOCAL_DIR/$ZK_NAME $PACKAGE_DIR
+remote_execute "tar zxf $LOCAL_DIR/$ZK_NAME -C $APP_DIR"
+
+remote_execute "if [ -e $APP_DIR/zookeeper ]; then rm -f $APP_DIR/zookeeper; fi"
+remote_execute "ln -sv $APP_DIR/apache-zookeeper-3.9.2-bin $APP_DIR/zookeeper"
+
+remote_execute "cp $APP_DIR/zookeeper/conf/zoo_sample.cfg $APP_DIR/zookeeper/conf/zoo.cfg"
+
+cat > $LOCAL_DIR/zoo_tmp.conf << EOF
+server.1=192.168.1.103:2888:3888
+EOF
+
+remote_transfer $LOCAL_DIR/zoo_tmp.conf /tmp
+remote_execute "cat /tmp/zoo_tmp.conf >> $APP_DIR/zookeeper/conf/zoo.cfg"
+
 # 安装配置 kafka ，并启动服务
