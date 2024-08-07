@@ -5,6 +5,8 @@ if [ -e ./deploy_kafka.log ]; then
     rm -f ./deploy_kafka.log
 fi
 
+set -e
+
 exec 1>>./deploy_kafka.log 2>&1
 
 # 初始化变量
@@ -94,11 +96,21 @@ remote_execute "ln -sv $APP_DIR/apache-zookeeper-3.9.2-bin $APP_DIR/zookeeper"
 
 remote_execute "cp $APP_DIR/zookeeper/conf/zoo_sample.cfg $APP_DIR/zookeeper/conf/zoo.cfg"
 
-cat > $LOCAL_DIR/zoo_tmp.conf << EOF
+cat >$LOCAL_DIR/zoo_tmp.conf <<EOF
 server.1=192.168.1.103:2888:3888
 EOF
 
 remote_transfer $LOCAL_DIR/zoo_tmp.conf /tmp
 remote_execute "cat /tmp/zoo_tmp.conf >> $APP_DIR/zookeeper/conf/zoo.cfg"
+
+remote_execute "if [ -e /data/zk ]; then rm -rf /data/zk; fi"
+remote_execute "mkdir /data/zk -p"
+remote_execute "sed -i 's/dataDir=\/tmp\/zookeeper/dataDir=\/data\/zk/g' $APP_DIR/zookeeper/conf/zoo.cfg"
+
+remote_execute "if [ $(hostname) == "node01" ]; then echo 1 > /data/zk/myid; fi"
+remote_execute "if [ $(hostname) == "node02" ]; then echo 2 > /data/zk/myid; fi"
+remote_execute "if [ $(hostname) == "node03" ]; then echo 3 > /data/zk/myid; fi"
+
+remote_execute "$APP_DIR/zookeeper/bin/zkServer.sh start"
 
 # 安装配置 kafka ，并启动服务
