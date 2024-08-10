@@ -1,10 +1,15 @@
 #!/bin/bash
 
+set -e
+
 # 初始化变量
 ROOT_PASS="123456"
 USER_NAME="root"
 USER_PASS="123456"
-HOST_LIST="192.168.1.107"
+HOST_LIST="192.168.1.109 192.168.1.100"
+
+# 安装 sshpass
+yum install -y sshpass
 
 # 管理主机针对已创建的用户生成密钥对
 if [ ! -f /root/.ssh/id_rsa ]; then

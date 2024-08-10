@@ -10,7 +10,7 @@ set -e
 exec 1>>./deploy_kafka.log 2>&1
 
 # 初始化变量
-HOST_LIST="192.168.1.104"
+HOST_LIST="192.168.1.109 192.168.1.100"
 LOCAL_DIR="/opt/tmp"
 PACKAGE_DIR="/opt/package"
 APP_DIR="/opt/source"
@@ -20,13 +20,13 @@ ZK_NAME="apache-zookeeper-3.9.2-bin.tar.gz"
 # 多主机执行指令函数封装
 function remote_execute {
     for host in $HOST_LIST; do
-        echo "$cmd($@) host($host)"
+        echo "cmd($@) host($host)"
 
         ssh -o StrictHostKeyChecking=no root@$host $@
         if [ $? -eq 0 ]; then
-            echo "$cmd($@) success"
+            echo "cmd($@) success"
         else
-            echo "$cmd($@) failed"
+            echo "cmd($@) failed"
         fi
     done
 
@@ -89,7 +89,7 @@ remote_execute "java -version"
 
 # 安装配置 zookeeper ，并启动服务
 remote_transfer $LOCAL_DIR/$ZK_NAME $PACKAGE_DIR
-remote_execute "tar zxf $LOCAL_DIR/$ZK_NAME -C $APP_DIR"
+remote_execute "tar zxf $PACKAGE_DIR/$ZK_NAME -C $APP_DIR"
 
 remote_execute "if [ -e $APP_DIR/zookeeper ]; then rm -f $APP_DIR/zookeeper; fi"
 remote_execute "ln -sv $APP_DIR/apache-zookeeper-3.9.2-bin $APP_DIR/zookeeper"
@@ -97,7 +97,8 @@ remote_execute "ln -sv $APP_DIR/apache-zookeeper-3.9.2-bin $APP_DIR/zookeeper"
 remote_execute "cp $APP_DIR/zookeeper/conf/zoo_sample.cfg $APP_DIR/zookeeper/conf/zoo.cfg"
 
 cat >$LOCAL_DIR/zoo_tmp.conf <<EOF
-server.1=192.168.1.103:2888:3888
+server.1=192.168.1.109:2888:3888
+server.2=192.168.1.100:2888:3888
 EOF
 
 remote_transfer $LOCAL_DIR/zoo_tmp.conf /tmp
@@ -107,10 +108,12 @@ remote_execute "if [ -e /data/zk ]; then rm -rf /data/zk; fi"
 remote_execute "mkdir /data/zk -p"
 remote_execute "sed -i 's/dataDir=\/tmp\/zookeeper/dataDir=\/data\/zk/g' $APP_DIR/zookeeper/conf/zoo.cfg"
 
-remote_execute "if [ $(hostname) == "node01" ]; then echo 1 > /data/zk/myid; fi"
-remote_execute "if [ $(hostname) == "node02" ]; then echo 2 > /data/zk/myid; fi"
-remote_execute "if [ $(hostname) == "node03" ]; then echo 3 > /data/zk/myid; fi"
+remote_execute 'if [ $(hostname) == "node01" ]; then echo 1 > /data/zk/myid; fi'
+remote_execute 'if [ $(hostname) == "node02" ]; then echo 2 > /data/zk/myid; fi'
+remote_execute 'if [ $(hostname) == "node03" ]; then echo 3 > /data/zk/myid; fi'
 
+remote_execute "jps | grep QuorumPeerMain | grep -v grep | awk '{print \$1}' > /tmp/zk.pid"
+remote_execute 'if [ -s /tmp/zk.pid ]; then kill -9 `cat /tmp/zk.pid`; fi'
 remote_execute "$APP_DIR/zookeeper/bin/zkServer.sh start"
 
 # 安装配置 kafka ，并启动服务
