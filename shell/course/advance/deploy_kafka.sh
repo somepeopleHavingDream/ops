@@ -17,6 +17,7 @@ APP_DIR="/opt/source"
 JDK_NAME="jdk-8u261-linux-x64.tar.gz"
 ZK_NAME="apache-zookeeper-3.9.2-bin.tar.gz"
 SCALA_NAME="scala3-3.4.2.tar.gz"
+KAFKA_NAME="kafka_2.13-3.8.0.tgz"
 
 # 多主机执行指令函数封装
 function remote_execute {
@@ -131,3 +132,37 @@ remote_execute "source /etc/profile.d/scala.sh"
 remote_execute "scala -version"
 
 # 安装配置 kafka ，并启动服务
+remote_transfer $LOCAL_DIR/$KAFKA_NAME $PACKAGE_DIR
+remote_execute "tar zxf $PACKAGE_DIR/$KAFKA_NAME -C $APP_DIR"
+
+remote_execute "if [ -e $APP_DIR/kafka ]; then rm -rf $APP_DIR/kafka; fi"
+remote_execute "ln -sv $APP_DIR/kafka_2.13-3.8.0 $APP_DIR/kafka"
+
+remote_execute "if [ -e /data/kafka/log ]; then rm -rf /data/kafka/log; fi"
+remote_execute "mkdir -p /data/kafka/log"
+
+remote_execute "sed -i '/zookeeper.connect=localhost:2181/d' $APP_DIR/kafka/config/server.properties"
+remote_execute "sed -i '\$azookeeper.connect=192.168.1.109:2181' $APP_DIR/kafka/config/server.properties"
+
+remote_execute "if [ \`hostname\` == "node01" ]; then sed -i 's/broker.id=0/broker.id=100/g' $APP_DIR/kafka/config/server.properties; fi"
+remote_execute "if [ \`hostname\` == "node02" ]; then sed -i 's/broker.id=0/broker.id=101/g' $APP_DIR/kafka/config/server.properties; fi"
+remote_execute "if [ \`hostname\` == "node03" ]; then sed -i 's/broker.id=0/broker.id=102/g' $APP_DIR/kafka/config/server.properties; fi"
+
+remote_execute "if [ \`hostname\` == "node01" ]; then sed -i '\$alisteners=PLAINTEXT://192.168.1.109:9092' $APP_DIR/kafka/config/server.properties; fi"
+remote_execute "if [ \`hostname\` == "node02" ]; then sed -i '\$alisteners=PLAINTEXT://192.168.1.110:9092' $APP_DIR/kafka/config/server.properties; fi"
+remote_execute "if [ \`hostname\` == "node03" ]; then sed -i '\$alisteners=PLAINTEXT://192.168.1.111:9092' $APP_DIR/kafka/config/server.properties; fi"
+
+remote_execute "sed -i 's/log.dirs=\/tmp\/kafka-logs/log.dirs=\/data\/kafka\/log/g' $APP_DIR/kafka/config/server.properties"
+
+remote_execute "jps | grep Kafka | grep -v grep | awk '{print \$1}' > /tmp/kafka.pid"
+remote_execute "if [ -s /tmp/kafka.pid ]; then kill -9 \`cat /tmp/kafka.pid\`; fi"
+
+remote_execute "$APP_DIR/kafka/bin/kafka-server-start.sh -daemon $APP_DIR/kafka/config/server.properties"
+
+sleep 5
+
+remote_execute "if [ \`hostname\` == "node01" ]; then $APP_DIR/kafka/bin/kafka-topics.sh --bootstrap-server 192.168.1.109:9092 --create --topic test --partitions 5 --replication-factor 1; fi"
+
+sleep 5
+
+remote_execute "if [ \`hostname\` == "node01" ]; then $APP_DIR/kafka/bin/kafka-topics.sh --bootstrap-server 192.168.1.109:9092 --describe --topic test; fi"
