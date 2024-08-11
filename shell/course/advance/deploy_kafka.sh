@@ -10,12 +10,13 @@ set -e
 exec 1>>./deploy_kafka.log 2>&1
 
 # 初始化变量
-HOST_LIST="192.168.1.109 192.168.1.100"
+HOST_LIST="192.168.1.109"
 LOCAL_DIR="/opt/tmp"
 PACKAGE_DIR="/opt/package"
 APP_DIR="/opt/source"
 JDK_NAME="jdk-8u261-linux-x64.tar.gz"
 ZK_NAME="apache-zookeeper-3.9.2-bin.tar.gz"
+SCALA_NAME="scala3-3.4.2.tar.gz"
 
 # 多主机执行指令函数封装
 function remote_execute {
@@ -98,7 +99,6 @@ remote_execute "cp $APP_DIR/zookeeper/conf/zoo_sample.cfg $APP_DIR/zookeeper/con
 
 cat >$LOCAL_DIR/zoo_tmp.conf <<EOF
 server.1=192.168.1.109:2888:3888
-server.2=192.168.1.100:2888:3888
 EOF
 
 remote_transfer $LOCAL_DIR/zoo_tmp.conf /tmp
@@ -115,5 +115,19 @@ remote_execute 'if [ $(hostname) == "node03" ]; then echo 3 > /data/zk/myid; fi'
 remote_execute "jps | grep QuorumPeerMain | grep -v grep | awk '{print \$1}' > /tmp/zk.pid"
 remote_execute 'if [ -s /tmp/zk.pid ]; then kill -9 `cat /tmp/zk.pid`; fi'
 remote_execute "$APP_DIR/zookeeper/bin/zkServer.sh start"
+
+# 安装配置 scala 环境
+remote_transfer $LOCAL_DIR/$SCALA_NAME $PACKAGE_DIR
+remote_execute "tar zxf $PACKAGE_DIR/$SCALA_NAME -C $APP_DIR"
+
+cat >$LOCAL_DIR/scala.sh <<EOF
+export SCALA_HOME=$APP_DIR/scala3-3.4.2
+export PATH=\$PATH:\$SCALA_HOME/bin
+export SCALA_HOME PATH
+EOF
+
+remote_transfer $LOCAL_DIR/scala.sh /etc/profile.d/
+remote_execute "source /etc/profile.d/scala.sh"
+remote_execute "scala -version"
 
 # 安装配置 kafka ，并启动服务
