@@ -4,6 +4,8 @@ HOST_LIST="192.168.1.109"
 
 function service_start {
     for host in $HOST_LIST; do
+        echo "service_start host($host)"
+
         service_status $host
         if [ $? -eq 0 ]; then
             echo "Kafka broker in $host is already RUNNING"
@@ -13,9 +15,12 @@ function service_start {
             while [ $index -le 10 ]; do
                 service_status $host
                 if [ $? -ne 0 ]; then
-                    ....
+                    sleep 3
+                    index=$(expr $index + 1)
+                    continue
                 else
-                    ....
+                    echo "ok, kafka broker in $host is RUNNING"
+                    break
                 fi
             done
         fi
@@ -35,7 +40,9 @@ function service_status {
 }
 
 case $1 in
-start) ;;
+start)
+    service_start
+    ;;
 stop) ;;
 status)
     for host in $HOST_LIST; do
