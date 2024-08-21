@@ -12,7 +12,7 @@ function service_start {
         else
             ssh -o StrictHostKeyChecking=no $host "/opt/source/kafka/bin/kafka-server-start.sh -daemon /opt/source/kafka/config/server.properties" &>/dev/null
             index=0
-            while [ $index -le 10 ]; do
+            while [ $index -lt 5 ]; do
                 service_status $host
                 if [ $? -ne 0 ]; then
                     sleep 3
@@ -32,10 +32,20 @@ function service_start {
 # }
 
 function service_status {
-    ssh -o StrictHostKeyChecking=no $1 "jps | grep -w Kafka" &>/dev/null
-    if [ $? -eq 0 ]; then
+    status_idx=0
+    result=0
+    while [ $status_idx -lt 3 ]; do
+        ssh -o StrictHostKeyChecking=no $1 "jps | grep -w Kafka" &>/dev/null
+        if [ $? -eq 0 ]; then
+            result=$(expr $result + 1)
+        fi
+        status_idx=$(expr $status_idx + 1)
+    done
+
+    if [ $result -eq 3 ]; then
         return
     fi
+
     return 99
 }
 
